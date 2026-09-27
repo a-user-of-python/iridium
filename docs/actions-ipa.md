@@ -1,5 +1,23 @@
 # Build an unsigned IPA
 
+The Madeira D3D12 runtime downloads a checksum-pinned Metal Shader Converter
+4.0 beta 2 dependency from the repository's `deps-metal-shader-converter-4.0-beta2`
+release. Local builds and hosted Actions use the same archive. No Apple account
+credentials or additional CI secrets are needed.
+
+The archive contains the iOS and macOS dynamic libraries, public headers,
+Apple's agreement, and the header licenses and acknowledgements. It excludes
+the installer and command-line tools. Libraries retain Apple's terms; headers
+retain Apache-2.0. The download hash is pinned in `ci/runtime-inputs.json` and
+`testrepos/Madeira/build/madeira-d3d12/deps.sh`. Extracted files are checked
+against the archive's checksum manifest before use. A damaged cache stops the
+build rather than silently omitting D3D12.
+
+For an offline build, set `MADEIRA_MSC_PKG` to the official Apple 4.0 beta 2
+installer. Its SHA-256 must be
+`0e7b6c83617a0b67905614579e82031d177ed49cfaacccb0aaef6ddadf19107c`.
+The build extracts it without installing it system-wide.
+
 Use **Actions → Build unsigned IPA → Run workflow**. Select the branch to build.
 For a checked local checkout, `python3 ci/dispatch-build.py` starts the workflow
 and verifies that GitHub builds the selected commit. Builds are manual; the
@@ -246,9 +264,10 @@ second build in the same checkout is rejected before shared files are modified.
 No manual extraction, clean build, or cache deletion is needed after a native
 refresh or a missing extracted-userland failure.
 
-The local build targets iOS 27 because its retained media SDK requires iOS 27.
-It is not an iOS 18/26 compatibility build. Xcode beta is selected by default;
-set `DEVELOPER_DIR` to select another suitable full Xcode installation.
+The local build targets iOS 18. Its media link check rejects a retained SDK
+whose linked objects require a newer iOS version. Restore or rebuild the media
+SDK from the current source revision if that check fails. Xcode beta is selected
+by default; set `DEVELOPER_DIR` to select another suitable full Xcode installation.
 `IRIDIUM_AUTO_INSTALL_BUILD_TOOLS=0` reports missing host tools without installing
 them. Keep the existing source trees, compiler build directories and
 `.build/local-ipa` to retain incremental compilation.
