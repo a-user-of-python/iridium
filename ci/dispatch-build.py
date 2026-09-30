@@ -9,8 +9,19 @@ import time
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO = "intraducine/iridium"
 WORKFLOW = "build-unsigned-ipa.yml"
+
+
+def repo_slug():
+    """Derive owner/repo from this checkout's origin remote (fork-aware)."""
+    url = subprocess.check_output(
+        ["git", "remote", "get-url", "origin"], cwd=ROOT, text=True
+    ).strip()
+    # Handles https://github.com/owner/repo(.git) and git@github.com:owner/repo(.git)
+    m = re.search(r"github\.com[:/]([^/]+/[^/]+?)(?:\.git)?$", url)
+    if not m:
+        raise RuntimeError(f"Cannot derive repo slug from origin URL: {url}")
+    return m.group(1)
 
 
 def check_commit(expected, actual):
@@ -24,13 +35,14 @@ def gh(*args):
 
 def dispatch(ref, expected, verify_lgpl_relink=False):
     check_commit(expected, expected)
+    repo = repo_slug()
     token = uuid.uuid4().hex
-    gh("workflow", "run", WORKFLOW, "--repo", REPO, "--ref", ref,
+    gh("workflow", "run", WORKFLOW, "--repo", repo, "--ref", ref,
        "-f", f"expected_sha={expected}", "-f", f"dispatch_id={token}",
        "-f", "verify_lgpl_relink=" + str(verify_lgpl_relink).lower())
     # A unique title identifies this request, even with concurrent dispatches.
     for _ in range(30):
-        runs = json.loads(gh("api", f"repos/{REPO}/actions/workflows/{WORKFLOW}/runs?event=workflow_dispatch&per_page=100"))["workflow_runs"]
+        runs = json.loads(gh("api", f"repos/{repo}/actions/workflows/{WORKFLOW}/runs?event=workflow_dispatch&per_page=100"))["workflow_runs"]
         matches = [run for run in runs if run["display_title"].endswith(f" · {token}")]
         if matches:
             if len(matches) != 1:
@@ -39,7 +51,7 @@ def dispatch(ref, expected, verify_lgpl_relink=False):
             try:
                 check_commit(expected, run["head_sha"])
             except ValueError:
-                gh("api", "--method", "POST", f"repos/{REPO}/actions/runs/{run['id']}/cancel")
+                gh("api", "--method", "POST", f"repos/{repo}/actions/runs/{run['id']}/cancel")
                 raise
             return run["html_url"]
         time.sleep(2)

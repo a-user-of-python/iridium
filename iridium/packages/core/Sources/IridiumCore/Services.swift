@@ -636,8 +636,12 @@ public actor IridiumStore: GameLibraryService, SteamService, RuntimeService {
             return
         }
 
+        // If the on-disk artifacts could not be written, keep the previous
+        // stage instead of recording a stage whose artifacts are missing.
+        guard materializeInstallExecution(execution, previousStage: nil) != false else {
+            return
+        }
         installExecutionEntries[index] = execution
-        materializeInstallExecution(execution, previousStage: nil)
         syncDownloadState(with: execution)
         persist()
     }
@@ -692,7 +696,11 @@ public actor IridiumStore: GameLibraryService, SteamService, RuntimeService {
         )
 
         ensureManagedStorageRoots()
-        materializeInstallExecution(execution, previousStage: nil)
+        // If the on-disk session metadata could not be written, do not insert
+        // a record that claims the install session exists on disk.
+        guard materializeInstallExecution(execution, previousStage: nil) != false else {
+            return execution
+        }
 
         installExecutionEntries.removeAll { $0.title == title }
         installExecutionEntries.insert(execution, at: 0)
@@ -757,7 +765,11 @@ public actor IridiumStore: GameLibraryService, SteamService, RuntimeService {
         }
 
         execution.lastUpdatedAt = Date()
-        materializeInstallExecution(execution, previousStage: previousStage)
+        // If the on-disk artifacts could not be written, do not advance the
+        // stored stage; the previous stage remains the source of truth.
+        guard materializeInstallExecution(execution, previousStage: previousStage) != false else {
+            return installExecutionEntries[index]
+        }
         installExecutionEntries[index] = execution
         syncDownloadState(with: execution)
         persist()
@@ -1674,10 +1686,14 @@ public actor IridiumStore: GameLibraryService, SteamService, RuntimeService {
         rootURL() != nil
     }
 
-    private func materializeInstallExecution(_ execution: InstallExecutionRecord, previousStage: InstallExecutionStage?) {
+    /// Materializes the install-execution metadata on disk. Returns nil when
+    /// there is no on-disk root (nothing to do), true on success, and false
+    /// when materialization was attempted but failed — callers must not
+    /// record the stage as complete in that case.
+    private func materializeInstallExecution(_ execution: InstallExecutionRecord, previousStage: InstallExecutionStage?) -> Bool? {
         guard rootURL() != nil,
               let targetRoot = fileURLIfAbsolutePath(execution.targetPath) else {
-            return
+            return nil
         }
 
         do {
@@ -1735,8 +1751,11 @@ public actor IridiumStore: GameLibraryService, SteamService, RuntimeService {
                 )
             }
         } catch {
+            NSLog("Iridium: Failed to materialize install execution for \(execution.title): \(error)")
             assertionFailure("Failed to materialize install execution for \(execution.title): \(error)")
+            return false
         }
+        return true
     }
 
     private func materializeCompletedDepots(
@@ -2161,6 +2180,10 @@ public actor IridiumStore: GameLibraryService, SteamService, RuntimeService {
             let data = try encoder.encode(snapshot)
             try data.write(to: snapshotURL, options: .atomic)
         } catch {
+            // assertionFailure is compiled out in release builds, so also log
+            // to stderr (captured by the runtime log) — a silent persist
+            // failure here means the in-memory store and disk diverge.
+            NSLog("Iridium: Failed to persist snapshot: \(error)")
             assertionFailure("Failed to persist Iridium snapshot: \(error)")
         }
     }

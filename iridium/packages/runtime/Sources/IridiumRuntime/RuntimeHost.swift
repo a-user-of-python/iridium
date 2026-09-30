@@ -1793,6 +1793,7 @@ actor NativeRuntimeHostBackend {
         case RendererPreset.dxvkBalanced.rawValue, RendererPreset.dxvkPerformance.rawValue:
             return activeStack == GraphicsStack.dxvkViaMoltenVK.rawValue
                 || activeStack == GraphicsStack.vkd3dViaMoltenVK.rawValue
+                || activeStack == GraphicsStack.dxmtViaMetal.rawValue
         case RendererPreset.metalOpenGLFallback.rawValue:
             return true
         default:

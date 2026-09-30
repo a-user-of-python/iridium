@@ -34,7 +34,7 @@ and input need separate device tests.
 
 ## Build requirements
 
-Use a fresh checkout, Python 3.12 or newer, and Xcode 27. The workflow installs
+Use a fresh checkout, Python 3.11 or newer, and Xcode 27. The workflow installs
 its host tools and prepares dependencies. Follow its commands for a local build;
 generate the app project with `iridium/apps/ios/stikjit.yml`.
 
@@ -250,7 +250,7 @@ establish either. They are not a claim that all replacement variants were tested
 
 ## Local incremental app builds
 
-On an Apple Silicon Mac, with Python 3.12+, Xcode 27 and the initial runtime
+On an Apple Silicon Mac, with Python 3.11+, Xcode 27 and the initial runtime
 dependencies staged, run this same command for both first builds and retries:
 
 ```sh

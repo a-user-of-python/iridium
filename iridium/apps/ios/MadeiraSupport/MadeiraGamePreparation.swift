@@ -44,6 +44,56 @@ enum MadeiraGamePreparation {
             .appendingPathComponent("MadeiraTestPrefixes/\(gameID.uuidString)", isDirectory: true)
     }
 
+    /// Marks a directory (and everything under it) as excluded from iCloud
+    /// and device backups. Best-effort: a failure here must never break
+    /// game preparation.
+    static func excludeFromBackup(_ url: URL) {
+        var mutable = url
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? mutable.setResourceValues(values)
+    }
+
+    /// Deletes the entire on-disk prefix for a game: the isolated game copy,
+    /// all `game-backup-*` directories, and Wine prefix state. The caller must
+    /// have confirmed this with the user; saves stored inside the game folder
+    /// are removed too. Only touches the well-formed
+    /// `Documents/MadeiraTestPrefixes/<gameID>` directory.
+    static func deletePrefix(for gameID: UUID) throws {
+        let fm = FileManager.default
+        let documents = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .standardizedFileURL
+        let prefix = prefix(for: gameID).standardizedFileURL
+        guard prefix.path.hasPrefix(documents.path + "/"),
+              prefix.lastPathComponent == gameID.uuidString,
+              prefix.deletingLastPathComponent().lastPathComponent == "MadeiraTestPrefixes" else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        guard (try? prefix.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink != true else {
+            throw CocoaError(.fileReadUnsupportedScheme)
+        }
+        if fm.fileExists(atPath: prefix.path) {
+            try fm.removeItem(at: prefix)
+        }
+    }
+
+    /// Removes stale `game-backup-*` directories from a prefix, keeping only
+    /// the backup named `keeping` (the one from the update that just
+    /// completed). Only well-formed `game-backup-<UUID>` directories are
+    /// touched; anything else is left alone. Best-effort.
+    static func pruneOldBackups(prefix: URL, keeping latestBackupName: String) {
+        let fm = FileManager.default
+        guard let items = try? fm.contentsOfDirectory(at: prefix, includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey], options: []) else { return }
+        for item in items {
+            let name = item.lastPathComponent
+            guard name.hasPrefix("game-backup-"), name != latestBackupName,
+                  UUID(uuidString: String(name.dropFirst("game-backup-".count))) != nil else { continue }
+            guard let values = try? item.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
+                  values.isDirectory == true, values.isSymbolicLink != true else { continue }
+            try? fm.removeItem(at: item)
+        }
+    }
+
     static func prepare(
         executable: URL,
         gameRoot: URL,
@@ -68,6 +118,9 @@ enum MadeiraGamePreparation {
             }
         }
         try fm.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+        // Multi-gigabyte game copies and prefixes must never be uploaded to
+        // iCloud: exclude the whole prefix tree from device backups.
+        excludeFromBackup(prefix)
         try recoverInterruptedUpdate(prefix: prefix, target: target)
         // Single-session callers hold the preparation/launch gate. Old staging
         // copies are never active saves and can be removed after recovery.
@@ -177,6 +230,10 @@ enum MadeiraGamePreparation {
             installed = true
             try fm.removeItem(at: journalURL)
             journalWritten = false
+            // Every successful update used to leave a full extra game copy
+            // behind. Keep only the backup from this update; prune the rest
+            // so disk use stays bounded instead of growing ~2x per update.
+            if hadTarget { pruneOldBackups(prefix: prefix, keeping: backup.lastPathComponent) }
         } catch {
             if !fm.fileExists(atPath: target.path), fm.fileExists(atPath: backup.path) {
                 try fm.moveItem(at: backup, to: target)

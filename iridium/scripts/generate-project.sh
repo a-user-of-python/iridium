@@ -11,6 +11,6 @@ if ! command -v xcodegen >/dev/null 2>&1; then
 fi
 
 cd "$IOS_DIR"
-xcodegen generate
-echo "Generated $IOS_DIR/Iridium.xcodeproj"
+xcodegen generate --spec stikjit.yml
+echo "Generated $IOS_DIR/IridiumStikJIT.xcodeproj"
 

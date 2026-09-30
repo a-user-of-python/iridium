@@ -144,6 +144,16 @@ class ManualBuildTests(unittest.TestCase):
         self.assertIn("CODE_SIGNING_ALLOWED=NO", text)
         self.assertLess(text.index("ci/check-ipa-prerequisites.py"), text.index("xcodebuild -project"))
 
+    def test_repo_slug_derives_fork_from_origin(self):
+        cases = {
+            "https://github.com/a-user-of-python/iridium.git": "a-user-of-python/iridium",
+            "https://github.com/intraducine/iridium": "intraducine/iridium",
+            "git@github.com:a-user-of-python/iridium.git": "a-user-of-python/iridium",
+        }
+        for url, expected in cases.items():
+            with patch.object(dispatch.subprocess, "check_output", return_value=url + "\n"):
+                self.assertEqual(dispatch.repo_slug(), expected)
+
     def test_dispatch_checks_and_cancels_only_its_own_run(self):
         import json
         expected = "a" * 40
@@ -151,7 +161,8 @@ class ManualBuildTests(unittest.TestCase):
             run = {"id": 123, "display_title": "build · token", "head_sha": actual,
                    "html_url": "https://github.com/intraducine/iridium/actions/runs/123"}
             unrelated = dict(run, id=456, display_title="build · other")
-            with patch.object(dispatch.uuid, "uuid4") as token, patch.object(dispatch, "gh") as gh:
+            with patch.object(dispatch.uuid, "uuid4") as token, patch.object(dispatch, "gh") as gh, \
+                 patch.object(dispatch, "repo_slug", return_value="intraducine/iridium"):
                 token.return_value.hex = "token"
                 gh.side_effect = ["", json.dumps({"workflow_runs": [unrelated, run]}), ""]
                 if actual == expected:

@@ -44,6 +44,7 @@ enum MadeiraRuntimeAdapter {
         let prefix = MadeiraGamePreparation.prefix(for: gameID)
         do { try FileManager.default.createDirectory(at: prefix, withIntermediateDirectories: true) }
         catch { fail("Cannot create the game environment: \(error.localizedDescription)"); return }
+        MadeiraGamePreparation.excludeFromBackup(prefix)
         // Once native/JIT state is touched this process remains single-session,
         // including failures and cancellation. Never race a canceled worker with a retry.
         started = true

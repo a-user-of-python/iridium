@@ -339,7 +339,7 @@ public struct DefaultWhitelistPolicy: WhitelistPolicy {
                 RuntimeFailure(
                     code: .whitelistBlocked,
                     reason: "The current host tier is not in the whitelist for this title.",
-                    recoverySuggestion: "Use a Tier 3 device or lower the title profile."
+                    recoverySuggestion: "This title is gated behind the heavy-title whitelist. No iOS device reaches Tier 3, so lower the title profile below the heavy threshold to launch it here."
                 )
             )
         }

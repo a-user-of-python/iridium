@@ -27,7 +27,7 @@ The [manual IPA workflow](docs/actions-ipa.md) builds runtime dependencies and t
 
 ## Build an unsigned IPA locally
 
-Install Xcode 27, Python 3.12 or newer, XcodeGen, and LLVM. Prepare the runtime
+Install Xcode 27, Python 3.11 or newer, XcodeGen, and LLVM. Prepare the runtime
 dependencies by following [the full IPA build guide](docs/actions-ipa.md), then
 run this command from the repository root:
 
