@@ -108,7 +108,9 @@ def stage(build, app, source=None):
 
 def check(app):
     for architecture in MACHINES:
-        for name in ['apisetschema.dll', 'ntdll.dll', 'kernel32.dll', 'kernelbase.dll', 'user32.dll', 'd3d11.dll', 'dxgi.dll', 'winemetal.dll']:
+        for name in ['apisetschema.dll', 'ntdll.dll', 'kernel32.dll', 'kernelbase.dll', 'user32.dll',
+                     'd3d11.dll', 'dxgi.dll', 'winemetal.dll',
+                     'd3d10.dll', 'd3d10_1.dll', 'd3d10core.dll']:
             check_pe(app / f'{architecture}-windows' / name, architecture)
     translator = app / 'arm64ec-windows/xtajit64.dll'
     check_pe(translator, 'arm64ec')

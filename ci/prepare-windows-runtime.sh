@@ -14,6 +14,9 @@ for arch in arm64ec aarch64; do
     for module in d3d11/d3d11 dxgi/dxgi winemetal/winemetal d3d10/d3d10core; do
         cp "$M/research/dxmt/build-$arch-ci/src/$module.dll" "$APP/$arch-windows/"
     done
+    # D3D10/D3D10.1 frontend shims: forward D3D10CreateDevice(1) into DXMT's
+    # d3d10core.dll so D3D10 games take the Metal path.
+    cp "$M/build/d3d10-shim/out/$arch/d3d10.dll" "$M/build/d3d10-shim/out/$arch/d3d10_1.dll" "$APP/$arch-windows/"
 done
 
 cp "$M/build/madeira-d3d12/out-pe/d3d12.dll" "$APP/arm64ec-windows/d3d12.dll"

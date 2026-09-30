@@ -70,6 +70,11 @@ done
 
 bash "$M/build/madeira-d3d12/build-pe.sh"
 
+# Build the D3D10/D3D10.1 -> DXMT frontend shims with the same pinned
+# LLVM-MinGW toolchain. They forward D3D10CreateDevice(1) into DXMT's
+# d3d10core.dll so D3D10 games use the Metal path like D3D11 games do.
+bash "$M/build/d3d10-shim/build.sh"
+
 # Validate the files consumed by staging before retaining this component.
 python3 - "$ROOT" <<'PY_CHECK'
 import importlib.util
@@ -85,5 +90,7 @@ stage.check_pe(madeira / 'build/madeira-d3d12/out-pe/d3d12.dll', 'arm64ec')
 for arch in stage.MACHINES:
     for module in ('d3d11/d3d11', 'dxgi/dxgi', 'winemetal/winemetal', 'd3d10/d3d10core'):
         stage.check_pe(madeira / f'research/dxmt/build-{arch}-ci/src/{module}.dll', arch)
-print('Verified FEX, D3D12, and all eight DXMT outputs before retention')
+    for shim in ('d3d10', 'd3d10_1'):
+        stage.check_pe(madeira / f'build/d3d10-shim/out/{arch}/{shim}.dll', arch)
+print('Verified FEX, D3D12, all eight DXMT outputs, and both D3D10 shims before retention')
 PY_CHECK
