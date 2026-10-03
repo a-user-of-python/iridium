@@ -43,27 +43,42 @@ typedef HRESULT(WINAPI *PFN_D3D10CoreCreateDevice)(
 
 typedef HRESULT(WINAPI *PFN_CreateDXGIFactory)(REFIID riid, void **ppFactory);
 
-/* Lazily loaded module handles. LoadLibrary is idempotent; the extra
- * reference is never freed, which is correct for process-lifetime DLLs. */
-static HMODULE shim_d3d10core_module(void) {
-  static HMODULE mod = NULL;
-  if (!mod)
-    mod = LoadLibraryA("d3d10core.dll");
+/* Race-free lazy module loading. LoadLibrary is idempotent, but two
+ * threads racing the naive `if (!mod) mod = LoadLibraryA(...)` can both
+ * publish a handle. Publish exactly one via an interlocked
+ * compare-exchange; the loser's handle was never visible to any other
+ * thread, so freeing it is safe. A failed load (NULL) is never published,
+ * so the next call retries instead of caching the failure. */
+static HMODULE shim_load_module_once(volatile HMODULE *slot, LPCSTR name) {
+  HMODULE mod = *slot;
+  if (!mod) {
+    HMODULE loaded = LoadLibraryA(name);
+    if (InterlockedCompareExchangePointer((PVOID volatile *)slot,
+                                          (PVOID)loaded, NULL) != NULL) {
+      /* Another thread published first; drop our private handle. */
+      if (loaded)
+        FreeLibrary(loaded);
+    }
+    mod = *slot;
+  }
   return mod;
+}
+
+/* Lazily loaded module handles. The extra reference is never freed, which
+ * is correct for process-lifetime DLLs. */
+static HMODULE shim_d3d10core_module(void) {
+  static volatile HMODULE mod = NULL;
+  return shim_load_module_once(&mod, "d3d10core.dll");
 }
 
 static HMODULE shim_dxgi_module(void) {
-  static HMODULE mod = NULL;
-  if (!mod)
-    mod = LoadLibraryA("dxgi.dll");
-  return mod;
+  static volatile HMODULE mod = NULL;
+  return shim_load_module_once(&mod, "dxgi.dll");
 }
 
 static HMODULE shim_d3dcompiler_module(void) {
-  static HMODULE mod = NULL;
-  if (!mod)
-    mod = LoadLibraryA("d3dcompiler_43.dll");
-  return mod;
+  static volatile HMODULE mod = NULL;
+  return shim_load_module_once(&mod, "d3dcompiler_43.dll");
 }
 
 static PFN_D3D10CoreCreateDevice shim_core_create_device(void) {

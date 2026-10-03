@@ -89,10 +89,8 @@ HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(
 /* ------------------------------------------------------------------ */
 
 static HMODULE forward_module(void) {
-  static HMODULE mod = NULL;
-  if (!mod)
-    mod = LoadLibraryA("d3d10.dll");
-  return mod;
+  static volatile HMODULE mod = NULL;
+  return shim_load_module_once(&mod, "d3d10.dll");
 }
 
 /* Failure value per return type: error codes for HRESULT-likes, NULL/FALSE
@@ -261,8 +259,9 @@ static HMODULE forward_module(void) {
     return p(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);                         \
   }
 
-FORWARD7(HRESULT, D3D10CompileEffectFromMemory, void *, SIZE_T, UINT,
-         ID3D10Include *, ID3D10EffectPool *, ID3D10Blob **, ID3D10Blob **)
+FORWARD9(HRESULT, D3D10CompileEffectFromMemory, void *, SIZE_T, LPCSTR,
+         const D3D_SHADER_MACRO *, ID3D10Include *, UINT, UINT, ID3D10Blob **,
+         ID3D10Blob **)
 FORWARD10(HRESULT, D3D10CompileShader, LPCSTR, SIZE_T, LPCSTR,
           const D3D10_SHADER_MACRO *, LPD3D10INCLUDE, LPCSTR, LPCSTR, UINT,
           ID3D10Blob **, ID3D10Blob **)

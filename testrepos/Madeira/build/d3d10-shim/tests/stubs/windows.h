@@ -16,6 +16,7 @@ typedef int BOOL;
 typedef uint64_t SIZE_T;
 typedef const char *LPCSTR;
 typedef void *LPVOID;
+typedef void *PVOID;
 typedef const void *LPCVOID;
 typedef uint8_t BYTE;
 typedef unsigned long DWORD;
@@ -56,7 +57,23 @@ static FARPROC stub_GetProcAddress(HMODULE m, LPCSTR n) {
   (void)n;
   return (FARPROC)0;
 }
+/* Single-threaded host-test stand-ins. The real Windows functions are
+ * used in the shipped DLLs; these only need the same signatures. */
+static int stub_FreeLibrary(HMODULE m) {
+  (void)m;
+  return TRUE;
+}
+static PVOID stub_InterlockedCompareExchangePointer(PVOID volatile *dst,
+                                                    PVOID exchange,
+                                                    PVOID comparand) {
+  PVOID old = *dst;
+  if (old == comparand)
+    *dst = exchange;
+  return old;
+}
 #define LoadLibraryA stub_LoadLibraryA
 #define GetProcAddress stub_GetProcAddress
+#define FreeLibrary stub_FreeLibrary
+#define InterlockedCompareExchangePointer stub_InterlockedCompareExchangePointer
 
 #endif

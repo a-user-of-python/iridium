@@ -12,7 +12,8 @@ typedef enum D3D10_DRIVER_TYPE {
   D3D10_DRIVER_TYPE_REFERENCE = 1,
   D3D10_DRIVER_TYPE_NULL = 2,
   D3D10_DRIVER_TYPE_SOFTWARE = 3,
-  D3D10_DRIVER_TYPE_WARP = 4
+  /* Wine's include/d3d10misc.h:33 -- was incorrectly 4 in an earlier stub. */
+  D3D10_DRIVER_TYPE_WARP = 5
 } D3D10_DRIVER_TYPE;
 
 typedef enum D3D10_FEATURE_LEVEL1 {
@@ -60,19 +61,23 @@ typedef enum D3D10_DEVICE_STATE_TYPES {
 #define D3D_DISASM_ENABLE_COLOR_CODE 0x2
 
 typedef struct _D3D10_STATE_BLOCK_MASK {
+  /* Bit-packed, exactly like the Windows SDK and Wine's
+   * include/d3d10effect.idl:107-133. Array fields hold one bit per slot
+   * (D3D10_BYTES_FROM_BITS(n) == ((n) + 7) >> 3); scalar fields use bit 0.
+   * Total: 76 bytes. */
   uint8_t VS;
-  uint8_t VSSamplers[16];
-  uint8_t VSShaderResources[128];
-  uint8_t VSConstantBuffers[14];
+  uint8_t VSSamplers[2];         /* 16 sampler slots */
+  uint8_t VSShaderResources[16]; /* 128 resource slots */
+  uint8_t VSConstantBuffers[2];  /* 14 constant-buffer slots */
   uint8_t GS;
-  uint8_t GSSamplers[16];
-  uint8_t GSShaderResources[128];
-  uint8_t GSConstantBuffers[14];
+  uint8_t GSSamplers[2];
+  uint8_t GSShaderResources[16];
+  uint8_t GSConstantBuffers[2];
   uint8_t PS;
-  uint8_t PSSamplers[16];
-  uint8_t PSShaderResources[128];
-  uint8_t PSConstantBuffers[14];
-  uint8_t IAVertexBuffers[16];
+  uint8_t PSSamplers[2];
+  uint8_t PSShaderResources[16];
+  uint8_t PSConstantBuffers[2];
+  uint8_t IAVertexBuffers[2]; /* 16 vertex-buffer slots */
   uint8_t IAIndexBuffer;
   uint8_t IAInputLayout;
   uint8_t IAPrimitiveTopology;
@@ -85,6 +90,12 @@ typedef struct _D3D10_STATE_BLOCK_MASK {
   uint8_t SOBuffers;
   uint8_t Predication;
 } D3D10_STATE_BLOCK_MASK;
+
+/* Slot counts from Wine's include/d3d10.idl (same as the Windows SDK). */
+#define D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT 16
+#define D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT 128
+#define D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT 14
+#define D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT 16
 
 /* --- COM interface stubs (vtbl layout: only used slots) --- */
 typedef struct IUnknown IUnknown;
