@@ -51,3 +51,5 @@ Do not commit signing certificates, private keys, provisioning profiles, pairing
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for implementation, review, validation,
 privacy, and dependency rules. Follow [the release policy](docs/releasing.md)
 and its fixed description template for every release. Builds remain manual.
+
+> Built with Muse — AI-assisted development.
